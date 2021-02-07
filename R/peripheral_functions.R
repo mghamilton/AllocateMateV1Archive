@@ -1,0 +1,368 @@
+#mhamilton@cgiar.org
+#Feb 2021
+
+#is.wholenumber function
+is.wholenumber <- function(x, tol = .Machine$double.eps^0.5)  abs(x - round(x)) < tol #from https://github.com/ProjectMOSAIC/mosaic/blob/master/R/is.wholenumber.R
+
+#check pedigree function
+check.ped <- function(ped) {
+  if(sum(colnames(ped) %in% c("ID", "DAM", "SIRE")) != 3) {
+    stop("colnames of ped must be: ID, DAM and SIRE")
+  }
+}
+
+check.max_F <- function(max_F) {
+  if(max_F > 1 | max_F < 0) {
+    stop("max_F must be no less than 0 and no greater than 1")
+  }
+}
+
+check.method <- function(method) {
+  if(!method %in% c("min_F", "assortative")) {
+    stop("method must be either min_F or assortative")
+  }
+}
+
+#Check parents function
+check.parents <- function(parents) {
+  
+  if(sum(colnames(parents) %in% c("ID", "SEX", "EBV", "N_AS_PARENT")) != 4) {
+    stop("colnames of parents must be: ID, SEX, EBV and N_AS_PARENT")
+  }
+  
+  parents <- parents[,c("ID", "SEX", "EBV", "N_AS_PARENT")]
+  
+  if(!is.character(parents$ID)) {
+    stop("ID must be of type character")
+  }
+  
+  if(sum(!parents$SEX %in% c("M","F")) > 0) {
+    stop("SEX must be of type character comprised of M or F, for male and female respectively")
+  }
+  
+  if(!is.numeric(parents$EBV)) {
+    stop("EBV must be of type numeric")
+  }
+  
+  if(sum(!is.wholenumber(parents$N_AS_PARENT)) > 0) {
+    stop("N_AS_PARENT must be a vector of type integer")
+  }
+  
+  if(sum(parents$N_AS_PARENT < 1) > 0) {
+    stop("N_AS_PARENT must contain integers greater than or equal to 1")
+  }
+  
+  if(sum(is.na(parents$ID)) > 0) {
+    stop("ID field of 'parents' must not contain missing values")
+  }
+  
+  if(sum(is.na(parents$SEX)) > 0) {
+    stop("SEX field of 'parents' must not contain missing values")
+  }
+  
+  if(sum(is.na(parents$N_AS_PARENT)) > 0) {
+    stop("N_AS_PARENT field of 'parents'  must not contain missing values")
+  }
+  
+  if(sum(parents[parents$SEX == "F","N_AS_PARENT"]) !=  sum(parents[parents$SEX == "M","N_AS_PARENT"])) {
+    stop("Sum of N_AS_PARENT for females must equal the sum of N_AS_PARENT for males")
+  }
+}
+
+#Check n_fam_crosses function
+
+check.n_fam_crosses <- function(n_fam_crosses) {
+  if(sum(!is.wholenumber(n_fam_crosses)) > 0) {
+    stop("n_fam_crosses must be of type integer")
+  }
+}
+
+#Check H function 
+check.H <- function(H) {
+  
+  if(!is.matrix(H)) {
+    stop("H is not a matrix")
+  }
+  
+  rownames(H) <- as.character(rownames(H))
+  colnames(H) <- as.character(colnames(H))  
+  
+  if(sum(!rownames(H) == colnames(H)) > 0) {
+    stop("rownames of H do not match colnames of H")
+  }
+  
+  if(max(H[upper.tri(H)]) > 3) {
+    stop("One or more off-diagonal elements of H are greater than 3")
+  }
+  
+  if(min(H[upper.tri(H)]) < -1) {
+    stop("One or more off-diagonal elements of H are less than -1")
+  }
+}
+
+reduce.ped <- function(ped, parents) {
+  
+  ancestors <- parents$ID
+  ancestors_prev <- 0
+  
+  while(ancestors_prev != length(ancestors)) {
+    tmp <- ped$ID %in% ancestors
+    ancestors_prev <- length(ancestors)
+    ancestors <- unique(c(ancestors,ped[tmp, "DAM"], ped[tmp, "SIRE"]))
+    rm(tmp)
+  }
+  
+  ped <- ped[ped$ID %in% ancestors,]
+  
+  return(ped)
+}
+
+
+summarise.fam <- function(families, parents) {
+  
+  #Summary
+  summary <- data.frame(SELECTED = c("N", "Y", "All"),
+                        COUNT_FAMS = c(nrow(families[families$SELECTED=='N',]),                 nrow(families[families$SELECTED=='Y',]),                 nrow(families)),
+                        MEAN_EBV = c(mean(families[families$SELECTED=='N',"EBV"], na.rm = T), mean(families[families$SELECTED=='Y',"EBV"], na.rm = T), mean(families[,"EBV"],na.rm = T)),
+                        SD_EBV = c(sd(families[families$SELECTED=='N',"EBV"], na.rm = T), sd(families[families$SELECTED=='Y',"EBV"], na.rm = T), sd(families[,"EBV"],na.rm = T)),
+                        MIN_EBV = c(min(families[families$SELECTED=='N',"EBV"], na.rm = T), min(families[families$SELECTED=='Y',"EBV"], na.rm = T), min(families[,"EBV"],na.rm = T)),
+                        MAX_EBV = c(max(families[families$SELECTED=='N',"EBV"], na.rm = T), max(families[families$SELECTED=='Y',"EBV"], na.rm = T), max(families[,"EBV"],na.rm = T)),
+                        MEAN_F   = c(mean(families[families$SELECTED=='N',"F"], na.rm = T),   mean(families[families$SELECTED=='Y',"F"], na.rm = T),   mean(families[,"F"], na.rm = T)),
+                        SD_F   = c(sd(families[families$SELECTED=='N',"F"], na.rm = T),   sd(families[families$SELECTED=='Y',"F"], na.rm = T),   sd(families[,"F"], na.rm = T)),
+                        MIN_F   = c(min(families[families$SELECTED=='N',"F"], na.rm = T),   min(families[families$SELECTED=='Y',"F"], na.rm = T),   min(families[,"F"], na.rm = T)),
+                        MAX_F   = c(max(families[families$SELECTED=='N',"F"], na.rm = T),   max(families[families$SELECTED=='Y',"F"], na.rm = T),   max(families[,"F"], na.rm = T))
+  )
+  
+  crosses <- list(summary      = summary,
+                  all_families = families,
+                  optimal_families = families[families[,"SELECTED"] == "Y",])
+  
+  if(sum(parents$N_AS_PARENT)/2 != summary[summary$SELECTED == "Y","COUNT_FAMS"]) {
+    stop("Optimal solution not found.  You may need to increase max_F.")
+  }
+  
+  return(crosses)
+}
+
+generate.fams <- function(H, parents, ped, max_F) {
+  
+  if("dplyr" %in% installed.packages()[, "Package"] == F) {install.packages("dplyr")}   
+  library(dplyr) 
+  
+  #Data checks
+  check.H(H)
+  check.parents(parents)
+  check.ped(ped)
+  check.max_F(max_F)
+  
+  if(sum(!parents$ID %in% rownames(H) > 0)) {
+    stop("H must contain parents in rownames and colnames")
+    
+  }
+  
+  #H matrix with dams in rows and sires in columns
+  H <- H[rownames(H) %in% parents[parents$SEX == "F","ID"],
+         colnames(H) %in% parents[parents$SEX == "M","ID"]]
+  H <- H[!duplicated(rownames(H)),
+         !duplicated(colnames(H))]
+  
+  #Loop to create data frame with possible families
+  families <- NULL
+  for(row in 1:nrow(H)) {
+    for(col in 1:ncol(H)) {  
+      families <- rbind(families, cbind(rownames(H)[row], colnames(H)[col], H[row,col]/2))
+    }
+  }
+  colnames(families) <- c("DAM","SIRE", "F")
+  families   <- as.data.frame(families)
+  families$F <- as.numeric(families$F)
+  
+  families$FAMILY <- 1:nrow(families) #Create FAMILY ID
+  families <- families[c("FAMILY","DAM","SIRE", "F")]
+  
+  #merge EBV data
+  ebvs <- left_join(families, parents[,c("ID", "EBV")], by = c("DAM"  = "ID"))
+  ebvs <- left_join(ebvs, parents[,c("ID", "EBV")], by = c("SIRE" = "ID"))
+  ebvs$EBV <- rowMeans(ebvs[,c("EBV.x","EBV.y")], na.rm = T)
+  ebvs[is.na(ebvs$EBV.x),"EBV"] <- NA
+  ebvs[is.na(ebvs$EBV.y),"EBV"] <- NA
+  colnames(ebvs)[colnames(ebvs) == "EBV.x"] <- "dam_ebv"
+  colnames(ebvs)[colnames(ebvs) == "EBV.y"] <- "sire_ebv"
+  families <- left_join(families, ebvs[,c("FAMILY", "dam_ebv", "sire_ebv", "EBV")], by = "FAMILY")
+  rm(ebvs)
+  
+  #parental FAMILY combinations
+  tmp <- ped
+  tmp[is.na(tmp$DAM), "DAM"] <- paste0("_dam_",1:sum(is.na(tmp$DAM)))
+  tmp[is.na(tmp$SIRE), "SIRE"] <- paste0("_sire_",1:sum(is.na(tmp$SIRE)))
+  tmp$fam <- as.numeric(as.factor(paste0(tmp$DAM, "_", tmp$SIRE)))  
+  tmp <- tmp[,c("ID", "fam")]
+  tmp$ID <- as.character(tmp$ID)
+  
+  colnames(tmp) <- c("DAM", "dam_fam")
+  families  <- left_join(families , tmp[,c("DAM","dam_fam")], by= "DAM")
+  
+  colnames(tmp) <- c("SIRE", "sire_fam")
+  families  <- left_join(families , tmp[,c("SIRE","sire_fam")], by= "SIRE")
+  
+  families <- families[order(as.numeric(families$FAMILY) , decreasing = FALSE), ] 
+  
+  families$fam_combn <- paste0(pmin(families$dam_fam, families$sire_fam, na.rm = T), "_", pmax(families$dam_fam, families$sire_fam, na.rm = T))
+  families$fam_combn <- as.factor(as.numeric(as.factor(families$fam_combn)))                                                                    
+  families$dam_fam   <- as.factor(families$dam_fam)
+  families$sire_fam  <- as.factor(families$sire_fam)
+  
+  families <- families[families$F <= max_F,] #remove families with excessive F
+  
+  tmp1 <- aggregate(!is.na(families[,"DAM"]),by=list(families[,"DAM"]), FUN = "sum") 
+  colnames(tmp1) <- c("ID", "N_possible_families_after_max_F_constraint_applied")
+  tmp2 <- aggregate(!is.na(families[,"SIRE"]),by=list(families[,"SIRE"]), FUN = "sum") 
+  colnames(tmp2) <- c("ID", "N_possible_families_after_max_F_constraint_applied")
+  
+  parents <- left_join(parents, rbind(tmp1, tmp2), by = "ID")
+  
+  if(sum(parents$N_AS_PARENT > parents$N_possible_families_after_max_F_constraint_applied) > 0) {
+    print(parents)    
+    stop("max_F too small given N_AS_PARENT values")
+  }
+  return(families)
+}
+
+min.F <- function(families, parents, n_fam_crosses) {
+  
+  if("lpSolveAPI" %in% installed.packages()[, "Package"] == F) {install.packages("lpSolveAPI")}   
+  library(lpSolveAPI) 
+  
+  if("dplyr" %in% installed.packages()[, "Package"] == F) {install.packages("dplyr")}   
+  library(dplyr) 
+  
+  #Data checks
+  check.parents(parents)
+  check.n_fam_crosses(n_fam_crosses)
+  
+  fam_combns   <- as.matrix(levels(families$fam_combn))
+  N_fam_combns <- length(fam_combns)  
+  
+  #Linear Programming to minimise F#########################################
+  #http://www.icesi.edu.co/CRAN/web/packages/lpSolveAPI/vignettes/lpSolveAPI.pdf
+  
+  print("Creating lpSolve linear program model object")
+  mate_lp <- make.lp(nrow(parents)+N_fam_combns, nrow(families))  
+  
+  #creates an lpSolve linear program model object with nrow(parents) + levels of fam_combn constraints and nrow(families) decision variables 
+
+  for(fam in 1:nrow(families)) {
+    par_count_temp <- NULL
+    
+    #Count times par is a parent in fam.  Will equal 0 (neither SIRE nor DAM), 1 (SIRE or DAM) or 2 (if self)
+    for(par in 1:nrow(parents)){  
+      par_count <- as.matrix((families[fam,"DAM"] == parents[par,1]) + (families[fam,"SIRE"] == parents[par,1]))     
+      par_count_temp <- as.matrix(cbind(par_count_temp,par_count))
+    }
+    par_count_temp <- as.vector(par_count_temp)
+    
+    par_fam_count_temp <- as.vector(1*(fam_combns == as.numeric(families[fam,"fam_combn"])))    
+    
+    #vector of counts for the number of times par is a parent in fam
+    set.column(mate_lp, fam, c(par_count_temp,par_fam_count_temp))
+    
+    #Constrain FAMILY count to 0 or 1 (i.e. binary)   
+    set.type(mate_lp, fam, "binary") 
+  }
+  
+  set.objfn(mate_lp, as.numeric(families[,"F"]))
+  set.constr.type(mate_lp, c(rep("=",nrow(parents)),rep("<=",N_fam_combns)))
+  set.rhs(mate_lp, c(parents[,"N_AS_PARENT"],rep(n_fam_crosses,length(fam_combns))))
+  dimnames(mate_lp) <- list(c(parents[,"ID"],(-1*as.numeric(fam_combns))),families[,"FAMILY"])
+
+  #print("Writing linear program")
+  #write.lp(mate_lp, "mate_allocation_linear_program.txt", type = c("lp", "mps", "freemps"), use.names = c(TRUE, TRUE))
+  
+  print("Solving linear program")
+  #Solve linear program
+  solved <- solve(mate_lp) #0 indicates that the model was successfully solved.
+  
+  if(solved != 0) {
+    stop ("Linear program not solved")
+    
+  }
+  
+  selected <- data.frame(get.variables(mate_lp))
+  selected$FAMILY <- rownames(selected)
+  colnames(selected)[1] <- "SELECTED"
+  families <- merge(families, selected, by = "FAMILY",all = FALSE)
+  families$SELECTED[families$SELECTED == 0] <- 'N'
+  families$SELECTED[families$SELECTED == 1] <- 'Y'
+  
+  #Sort
+  families <- families[order(as.numeric(families$FAMILY) , decreasing = FALSE), ] 
+  families <- families[order((families$SELECTED) , decreasing = TRUE),  ] 
+  
+  families <- families[,c("SIRE",	"DAM",	"F",	"EBV", "SELECTED")]  
+  
+  #Summary
+  crosses <- summarise.fam(families = families, parents = parents)
+
+  return(crosses)
+  
+}
+
+assortative <- function(families, parents, n_fam_crosses) {
+  
+  if("dplyr" %in% installed.packages()[, "Package"] == F) {install.packages("dplyr")}   
+  library(dplyr) 
+  
+  #Data checks
+  check.n_fam_crosses(n_fam_crosses)
+  check.parents(parents)
+  
+  if(sum(is.na(families$dam_ebv)) > 0 | sum(is.na(families$sire_ebv)) > 0){
+    stop("ebvs must not be NA if applying assortative mating")
+    
+  }
+  
+  tmp <- families
+  #add number of crosses available from dams and sires
+  tmp <- left_join(tmp, parents[,c("ID", "N_AS_PARENT")], by = c("DAM"  = "ID"))
+  colnames(tmp)[colnames(tmp) == "N_AS_PARENT"] <- "dam_avail"
+  tmp <- left_join(tmp, parents[,c("ID", "N_AS_PARENT")], by = c("SIRE"  = "ID"))
+  colnames(tmp)[colnames(tmp) == "N_AS_PARENT"] <- "sire_avail"
+  
+  tmp$fam_combn_avail <- n_fam_crosses
+  
+  tmp <- tmp[order(runif(nrow(tmp))),] #randomise order
+  tmp <- tmp[order(tmp$EBV, decreasing=T),] 
+  
+  allocated <- NULL
+  
+  while(nrow(tmp) > 0) {
+    DAM <- tmp$DAM[1]
+    SIRE <- tmp$SIRE[1] 
+    fam_combn <- tmp$fam_combn[1] 
+    
+    allocated <- c(allocated,tmp[1,"FAMILY"])
+    
+    tmp[tmp$DAM == DAM,"dam_avail"] <- tmp[tmp$DAM == DAM,"dam_avail"] - 1
+    tmp[tmp$SIRE == SIRE,"sire_avail"] <- tmp[tmp$SIRE == SIRE,"sire_avail"] - 1 
+    tmp[tmp$fam_combn == fam_combn,"fam_combn_avail"] <- tmp[tmp$fam_combn == fam_combn,"fam_combn_avail"] - 1  
+    
+    tmp <- tmp[tmp$dam_avail > 0,]
+    tmp <- tmp[tmp$sire_avail > 0,]
+    tmp <- tmp[tmp$fam_combn_avail > 0,]
+  }
+  
+  families$SELECTED <- "N"
+  families[families$FAMILY %in% allocated,"SELECTED"] <- "Y"
+  
+  #Sort
+  families <- families[order(as.numeric(families$FAMILY) , decreasing = FALSE), ] 
+  families <- families[order((families$SELECTED) , decreasing = TRUE),  ] 
+  
+  families <- families[,c("SIRE",	"DAM",	"F", "EBV",	"SELECTED")]  
+  
+  crosses <- summarise.fam(families = families, parents = parents)
+  
+  return(crosses)
+  
+}
+
