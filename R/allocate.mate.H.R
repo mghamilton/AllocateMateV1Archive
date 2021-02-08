@@ -13,7 +13,7 @@
 #'  \item{'N_AS_PARENT' The number of families the indivdiual is to contribute to (integer).} 
 #' }
 #' @param max_F is the maxiumum inbreeding coefficient allowed in the offspring of candidate parents (numeric between 0 and 1)
-#' @param method either 'min_F' (to minimise the average inbreeding in offspring) or 'assorative' (to apply assortative mating) (character)
+#' @param method either 'min_F' (to minimise the average inbreeding in offspring) or 'assortative' (to apply assortative mating) (character)
 #' @return 'summary' is a data frame containing a summary of all possible families generated from matings between parental candidates: 
 #' \itemize{
 #'  \item{'SELECTED' N represents unselected families, Y represents selected families (i.e. mate allocations to be generated) and All represents all possible families.}           
