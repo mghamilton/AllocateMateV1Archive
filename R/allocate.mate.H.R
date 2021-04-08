@@ -55,6 +55,8 @@
 
 
 allocate.mate.H <- function(H, parents, max_F = 1, method = "min_F") {
+  #mhamilton@cgiar.org
+  #Feb 2021
   
   if("nadiv" %in% installed.packages()[, "Package"] == F) {install.packages("nadiv")}   
   library(nadiv)
