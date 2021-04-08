@@ -4,7 +4,7 @@ AllocateMate is a R package (R Core Team 2016) comprised of two primary function
 
 ### What is AllocateMate ###
 
-* AllocateMate generates a mating list for a set of candidate parents.
+* AllocateMate generates a mating list for a set of parents.
 * The mating list can be generated i) to minimise the average inbreeding coefficient (F) of families generated or ii) according to assortative mating principles.
 
 ### To install AllocateMate in R ###
