@@ -123,14 +123,14 @@ summarise.fam <- function(families, parents) {
   #Summary
   summary <- data.frame(SELECTED = c("N", "Y", "All"),
                         COUNT_FAMS = c(nrow(families[families$SELECTED=='N',]),                 nrow(families[families$SELECTED=='Y',]),                 nrow(families)),
-                        MEAN_EBV = c(mean(families[families$SELECTED=='N',"EBV"], na.rm = T), mean(families[families$SELECTED=='Y',"EBV"], na.rm = T), mean(families[,"EBV"],na.rm = T)),
-                        SD_EBV = c(sd(families[families$SELECTED=='N',"EBV"], na.rm = T), sd(families[families$SELECTED=='Y',"EBV"], na.rm = T), sd(families[,"EBV"],na.rm = T)),
-                        MIN_EBV = c(min(families[families$SELECTED=='N',"EBV"], na.rm = T), min(families[families$SELECTED=='Y',"EBV"], na.rm = T), min(families[,"EBV"],na.rm = T)),
-                        MAX_EBV = c(max(families[families$SELECTED=='N',"EBV"], na.rm = T), max(families[families$SELECTED=='Y',"EBV"], na.rm = T), max(families[,"EBV"],na.rm = T)),
-                        MEAN_F   = c(mean(families[families$SELECTED=='N',"F"], na.rm = T),   mean(families[families$SELECTED=='Y',"F"], na.rm = T),   mean(families[,"F"], na.rm = T)),
-                        SD_F   = c(sd(families[families$SELECTED=='N',"F"], na.rm = T),   sd(families[families$SELECTED=='Y',"F"], na.rm = T),   sd(families[,"F"], na.rm = T)),
-                        MIN_F   = c(min(families[families$SELECTED=='N',"F"], na.rm = T),   min(families[families$SELECTED=='Y',"F"], na.rm = T),   min(families[,"F"], na.rm = T)),
-                        MAX_F   = c(max(families[families$SELECTED=='N',"F"], na.rm = T),   max(families[families$SELECTED=='Y',"F"], na.rm = T),   max(families[,"F"], na.rm = T))
+                        MEAN_EBV   = c(mean(families[families$SELECTED=='N',"EBV"], na.rm = T), mean(families[families$SELECTED=='Y',"EBV"], na.rm = T), mean(families[,"EBV"],na.rm = T)),
+                        SD_EBV     = c(sd(families[families$SELECTED=='N',"EBV"], na.rm = T),   sd(families[families$SELECTED=='Y',"EBV"], na.rm = T),   sd(families[,"EBV"],na.rm = T)),
+                        MIN_EBV    = c(min(families[families$SELECTED=='N',"EBV"], na.rm = T),  min(families[families$SELECTED=='Y',"EBV"], na.rm = T),  min(families[,"EBV"],na.rm = T)),
+                        MAX_EBV    = c(max(families[families$SELECTED=='N',"EBV"], na.rm = T),  max(families[families$SELECTED=='Y',"EBV"], na.rm = T),  max(families[,"EBV"],na.rm = T)),
+                        MEAN_F     = c(mean(families[families$SELECTED=='N',"F"], na.rm = T),   mean(families[families$SELECTED=='Y',"F"], na.rm = T),   mean(families[,"F"], na.rm = T)),
+                        SD_F       = c(sd(families[families$SELECTED=='N',"F"], na.rm = T),     sd(families[families$SELECTED=='Y',"F"], na.rm = T),     sd(families[,"F"], na.rm = T)),
+                        MIN_F      = c(min(families[families$SELECTED=='N',"F"], na.rm = T),    min(families[families$SELECTED=='Y',"F"], na.rm = T),    min(families[,"F"], na.rm = T)),
+                        MAX_F      = c(max(families[families$SELECTED=='N',"F"], na.rm = T),    max(families[families$SELECTED=='Y',"F"], na.rm = T),    max(families[,"F"], na.rm = T))
   )
   
   crosses <- list(summary      = summary,
@@ -242,7 +242,7 @@ min.F <- function(families, parents, n_fam_crosses) {
   
   fam_combns   <- as.matrix(levels(families$fam_combn))
   N_fam_combns <- length(fam_combns)  
-  
+
   #Linear Programming to minimise F#########################################
   #http://www.icesi.edu.co/CRAN/web/packages/lpSolveAPI/vignettes/lpSolveAPI.pdf
   
@@ -307,7 +307,7 @@ min.F <- function(families, parents, n_fam_crosses) {
   
 }
 
-assortative <- function(families, parents, n_fam_crosses) {
+assortative_old <- function(families, parents, n_fam_crosses) {
   
   if("dplyr" %in% installed.packages()[, "Package"] == F) {install.packages("dplyr")}   
   library(dplyr) 
@@ -360,6 +360,88 @@ assortative <- function(families, parents, n_fam_crosses) {
   
   families <- families[,c("SIRE",	"DAM",	"F", "EBV",	"SELECTED")]  
   
+  crosses <- summarise.fam(families = families, parents = parents)
+  
+  return(crosses)
+  
+}
+
+assortative <- function(families, parents, n_fam_crosses) {
+  
+  if("lpSolveAPI" %in% installed.packages()[, "Package"] == F) {install.packages("lpSolveAPI")}   
+  library(lpSolveAPI) 
+  
+  if("dplyr" %in% installed.packages()[, "Package"] == F) {install.packages("dplyr")}   
+  library(dplyr) 
+  
+  #Data checks
+  check.parents(parents)
+  check.n_fam_crosses(n_fam_crosses)
+  
+  fam_combns   <- as.matrix(levels(families$fam_combn))
+  N_fam_combns <- length(fam_combns) 
+  
+  EBV_mean <- sum(parents$EBV * parents$N_AS_PARENT) / sum(parents$N_AS_PARENT)
+  families$EBV_dev_squared <- abs(families$EBV - EBV_mean)^2
+  
+  #Linear Programming to maximise EBV_dev_squared#########################################
+  #http://www.icesi.edu.co/CRAN/web/packages/lpSolveAPI/vignettes/lpSolveAPI.pdf
+  
+  print("Creating lpSolve linear program model object")
+  mate_lp <- make.lp(nrow(parents)+N_fam_combns, nrow(families))  
+  
+  #creates an lpSolve linear program model object with nrow(parents) + levels of fam_combn constraints and nrow(families) decision variables 
+  
+  for(fam in 1:nrow(families)) {
+    par_count_temp <- NULL
+    
+    #Count times par is a parent in fam.  Will equal 0 (neither SIRE nor DAM), 1 (SIRE or DAM) or 2 (if self)
+    for(par in 1:nrow(parents)){  
+      par_count <- as.matrix((families[fam,"DAM"] == parents[par,1]) + (families[fam,"SIRE"] == parents[par,1]))     
+      par_count_temp <- as.matrix(cbind(par_count_temp,par_count))
+    }
+    par_count_temp <- as.vector(par_count_temp)
+    
+    par_fam_count_temp <- as.vector(1*(fam_combns == as.numeric(families[fam,"fam_combn"])))    
+    
+    #vector of counts for the number of times par is a parent in fam
+    set.column(mate_lp, fam, c(par_count_temp,par_fam_count_temp))
+    
+    #Constrain FAMILY count to 0 or 1 (i.e. binary)   
+    set.type(mate_lp, fam, "binary") 
+  }
+  
+  set.objfn(mate_lp, as.numeric(-families[,"EBV_dev_squared"])) #minimise negative
+  set.constr.type(mate_lp, c(rep("=",nrow(parents)),rep("<=",N_fam_combns)))
+  set.rhs(mate_lp, c(parents[,"N_AS_PARENT"],rep(n_fam_crosses,length(fam_combns))))
+  dimnames(mate_lp) <- list(c(parents[,"ID"],(-1*as.numeric(fam_combns))),families[,"FAMILY"])
+  
+  #print("Writing linear program")
+  #write.lp(mate_lp, "mate_allocation_linear_program.txt", type = c("lp", "mps", "freemps"), use.names = c(TRUE, TRUE))
+  
+  print("Solving linear program")
+  #Solve linear program
+  solved <- solve(mate_lp) #0 indicates that the model was successfully solved.
+  
+  if(solved != 0) {
+    stop ("Linear program not solved")
+    
+  }
+  
+  selected <- data.frame(get.variables(mate_lp))
+  selected$FAMILY <- rownames(selected)
+  colnames(selected)[1] <- "SELECTED"
+  families <- merge(families, selected, by = "FAMILY",all = FALSE)
+  families$SELECTED[families$SELECTED == 0] <- 'N'
+  families$SELECTED[families$SELECTED == 1] <- 'Y'
+  
+  #Sort
+  families <- families[order(as.numeric(families$FAMILY) , decreasing = FALSE), ] 
+  families <- families[order((families$SELECTED) , decreasing = TRUE),  ] 
+  
+  families <- families[,c("SIRE",	"DAM",	"F",	"EBV", "SELECTED")]  
+  
+  #Summary
   crosses <- summarise.fam(families = families, parents = parents)
   
   return(crosses)
