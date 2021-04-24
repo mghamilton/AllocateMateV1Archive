@@ -66,7 +66,7 @@ allocate.mate.H <- function(H, parents, max_F = 1, method = "min_F") {
   check.max_F(max_F)
   check.method(method)
   
-  #add ped and n_fam_crosses to run min.F - assume all unrelated in ped
+  #add ped 
   ped <- data.frame(ID = rownames(H),
                     DAM  = 1:nrow(H),
                     SIRE = (nrow(H)+1):(nrow(H)*2))
@@ -77,11 +77,11 @@ allocate.mate.H <- function(H, parents, max_F = 1, method = "min_F") {
   families <- generate.fams(H = H, parents = parents, ped = ped, max_F = max_F) 
   
   if(method == "assortative") {
-    output <- assortative(families = families, parents = parents, n_fam_crosses = 1)
+    output <- solve_lp(families = families, parents = parents, n_fam_crosses = 1, max_F = max_F, min_trait = "EBV_dev_squared")
   }
   
   if(method == "min_F") {
-    output <- min.F(families = families, parents = parents, n_fam_crosses = 1)
+    output <- solve_lp(families = families, parents = parents, n_fam_crosses = 1, max_F = max_F, min_trait = "F")
   }
   
   return(output)
