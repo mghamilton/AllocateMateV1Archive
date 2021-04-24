@@ -82,15 +82,15 @@ allocate.mate.ped <- function(ped, parents, max_F = 1, method = "min_F", n_fam_c
   H <- as.matrix(H)
   
   families <- generate.fams(H = H, ped = ped, parents = parents, max_F = max_F) 
-  
+ 
   if(method == "assortative") {
-    output <- assortative(families = families, parents = parents, n_fam_crosses = n_fam_crosses)
+    output <- solve_lp(families = families, parents = parents, n_fam_crosses = n_fam_crosses, max_F = max_F, min_trait = "EBV_dev_squared")
   }
   
   if(method == "min_F") {
-    output <- min.F(families = families, parents = parents, n_fam_crosses = n_fam_crosses)
+    output <- solve_lp(families = families, parents = parents, n_fam_crosses = n_fam_crosses, max_F = max_F, min_trait = "F")
   }
-  
+
   return(output)
   
 }

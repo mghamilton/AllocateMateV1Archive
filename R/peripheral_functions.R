@@ -212,6 +212,7 @@ generate.fams <- function(H, parents, ped, max_F) {
   families$dam_fam   <- as.factor(families$dam_fam)
   families$sire_fam  <- as.factor(families$sire_fam)
   
+  families_all <- families
   families <- families[families$F <= max_F,] #remove families with excessive F
   
   tmp1 <- aggregate(!is.na(families[,"DAM"]),by=list(families[,"DAM"]), FUN = "sum") 
@@ -220,15 +221,22 @@ generate.fams <- function(H, parents, ped, max_F) {
   colnames(tmp2) <- c("ID", "N_possible_families_after_max_F_constraint_applied")
   
   parents <- left_join(parents, rbind(tmp1, tmp2), by = "ID")
+  rm(tmp1, tmp2)
+  
+  tmp <- parents$ID[is.na(parents$N_possible_families_after_max_F_constraint_applied)]
+  if(length(tmp) > 0 ) {
+    print(parents)    
+    stop(paste("max_F too small given N_AS_PARENT values. Check: ",paste(tmp, sep=" ")))
+  }
   
   if(sum(parents$N_AS_PARENT > parents$N_possible_families_after_max_F_constraint_applied) > 0) {
     print(parents)    
     stop("max_F too small given N_AS_PARENT values")
   }
-  return(families)
+  return(families_all)
 }
 
-min.F <- function(families, parents, n_fam_crosses) {
+solve_lp <- function(families, parents, n_fam_crosses, max_F, min_trait) {
   
   if("lpSolveAPI" %in% installed.packages()[, "Package"] == F) {install.packages("lpSolveAPI")}   
   library(lpSolveAPI) 
@@ -242,7 +250,10 @@ min.F <- function(families, parents, n_fam_crosses) {
   
   fam_combns   <- as.matrix(levels(families$fam_combn))
   N_fam_combns <- length(fam_combns)  
-
+  
+  EBV_mean <- sum(parents$EBV * parents$N_AS_PARENT) / sum(parents$N_AS_PARENT)
+  families$EBV_dev_squared <- -abs(families$EBV - EBV_mean)^2
+  
   #Linear Programming to minimise F#########################################
   #http://www.icesi.edu.co/CRAN/web/packages/lpSolveAPI/vignettes/lpSolveAPI.pdf
   
@@ -250,147 +261,6 @@ min.F <- function(families, parents, n_fam_crosses) {
   mate_lp <- make.lp(nrow(parents)+N_fam_combns, nrow(families))  
   
   #creates an lpSolve linear program model object with nrow(parents) + levels of fam_combn constraints and nrow(families) decision variables 
-
-  for(fam in 1:nrow(families)) {
-    par_count_temp <- NULL
-    
-    #Count times par is a parent in fam.  Will equal 0 (neither SIRE nor DAM), 1 (SIRE or DAM) or 2 (if self)
-    for(par in 1:nrow(parents)){  
-      par_count <- as.matrix((families[fam,"DAM"] == parents[par,1]) + (families[fam,"SIRE"] == parents[par,1]))     
-      par_count_temp <- as.matrix(cbind(par_count_temp,par_count))
-    }
-    par_count_temp <- as.vector(par_count_temp)
-    
-    par_fam_count_temp <- as.vector(1*(fam_combns == as.numeric(families[fam,"fam_combn"])))    
-    
-    #vector of counts for the number of times par is a parent in fam
-    set.column(mate_lp, fam, c(par_count_temp,par_fam_count_temp))
-    
-    #Constrain FAMILY count to 0 or 1 (i.e. binary)   
-    set.type(mate_lp, fam, "binary") 
-  }
-  
-  set.objfn(mate_lp, as.numeric(families[,"F"]))
-  set.constr.type(mate_lp, c(rep("=",nrow(parents)),rep("<=",N_fam_combns)))
-  set.rhs(mate_lp, c(parents[,"N_AS_PARENT"],rep(n_fam_crosses,length(fam_combns))))
-  dimnames(mate_lp) <- list(c(parents[,"ID"],(-1*as.numeric(fam_combns))),families[,"FAMILY"])
-
-  #print("Writing linear program")
-  #write.lp(mate_lp, "mate_allocation_linear_program.txt", type = c("lp", "mps", "freemps"), use.names = c(TRUE, TRUE))
-  
-  print("Solving linear program")
-  #Solve linear program
-  solved <- solve(mate_lp) #0 indicates that the model was successfully solved.
-  
-  if(solved != 0) {
-    stop ("Linear program not solved")
-    
-  }
-  
-  selected <- data.frame(get.variables(mate_lp))
-  selected$FAMILY <- rownames(selected)
-  colnames(selected)[1] <- "SELECTED"
-  families <- merge(families, selected, by = "FAMILY",all = FALSE)
-  families$SELECTED[families$SELECTED == 0] <- 'N'
-  families$SELECTED[families$SELECTED == 1] <- 'Y'
-  
-  #Sort
-  families <- families[order(as.numeric(families$FAMILY) , decreasing = FALSE), ] 
-  families <- families[order((families$SELECTED) , decreasing = TRUE),  ] 
-  
-  families <- families[,c("SIRE",	"DAM",	"F",	"EBV", "SELECTED")]  
-  
-  #Summary
-  crosses <- summarise.fam(families = families, parents = parents)
-
-  return(crosses)
-  
-}
-
-assortative_old <- function(families, parents, n_fam_crosses) {
-  
-  if("dplyr" %in% installed.packages()[, "Package"] == F) {install.packages("dplyr")}   
-  library(dplyr) 
-  
-  #Data checks
-  check.n_fam_crosses(n_fam_crosses)
-  check.parents(parents)
-  
-  if(sum(is.na(families$dam_ebv)) > 0 | sum(is.na(families$sire_ebv)) > 0){
-    stop("ebvs must not be NA if applying assortative mating")
-    
-  }
-  
-  tmp <- families
-  #add number of crosses available from dams and sires
-  tmp <- left_join(tmp, parents[,c("ID", "N_AS_PARENT")], by = c("DAM"  = "ID"))
-  colnames(tmp)[colnames(tmp) == "N_AS_PARENT"] <- "dam_avail"
-  tmp <- left_join(tmp, parents[,c("ID", "N_AS_PARENT")], by = c("SIRE"  = "ID"))
-  colnames(tmp)[colnames(tmp) == "N_AS_PARENT"] <- "sire_avail"
-  
-  tmp$fam_combn_avail <- n_fam_crosses
-  
-  tmp <- tmp[order(runif(nrow(tmp))),] #randomise order
-  tmp <- tmp[order(tmp$EBV, decreasing=T),] 
-  
-  allocated <- NULL
-  
-  while(nrow(tmp) > 0) {
-    DAM <- tmp$DAM[1]
-    SIRE <- tmp$SIRE[1] 
-    fam_combn <- tmp$fam_combn[1] 
-    
-    allocated <- c(allocated,tmp[1,"FAMILY"])
-    
-    tmp[tmp$DAM == DAM,"dam_avail"] <- tmp[tmp$DAM == DAM,"dam_avail"] - 1
-    tmp[tmp$SIRE == SIRE,"sire_avail"] <- tmp[tmp$SIRE == SIRE,"sire_avail"] - 1 
-    tmp[tmp$fam_combn == fam_combn,"fam_combn_avail"] <- tmp[tmp$fam_combn == fam_combn,"fam_combn_avail"] - 1  
-    
-    tmp <- tmp[tmp$dam_avail > 0,]
-    tmp <- tmp[tmp$sire_avail > 0,]
-    tmp <- tmp[tmp$fam_combn_avail > 0,]
-  }
-  
-  families$SELECTED <- "N"
-  families[families$FAMILY %in% allocated,"SELECTED"] <- "Y"
-  
-  #Sort
-  families <- families[order(as.numeric(families$FAMILY) , decreasing = FALSE), ] 
-  families <- families[order((families$SELECTED) , decreasing = TRUE),  ] 
-  
-  families <- families[,c("SIRE",	"DAM",	"F", "EBV",	"SELECTED")]  
-  
-  crosses <- summarise.fam(families = families, parents = parents)
-  
-  return(crosses)
-  
-}
-
-assortative <- function(families, parents, n_fam_crosses) {
-  
-  if("lpSolveAPI" %in% installed.packages()[, "Package"] == F) {install.packages("lpSolveAPI")}   
-  library(lpSolveAPI) 
-  
-  if("dplyr" %in% installed.packages()[, "Package"] == F) {install.packages("dplyr")}   
-  library(dplyr) 
-  
-  #Data checks
-  check.parents(parents)
-  check.n_fam_crosses(n_fam_crosses)
-  
-  fam_combns   <- as.matrix(levels(families$fam_combn))
-  N_fam_combns <- length(fam_combns) 
-  
-  EBV_mean <- sum(parents$EBV * parents$N_AS_PARENT) / sum(parents$N_AS_PARENT)
-  families$EBV_dev_squared <- abs(families$EBV - EBV_mean)^2
-  
-  #Linear Programming to maximise EBV_dev_squared#########################################
-  #http://www.icesi.edu.co/CRAN/web/packages/lpSolveAPI/vignettes/lpSolveAPI.pdf
-  
-  print("Creating lpSolve linear program model object")
-  mate_lp <- make.lp(nrow(parents)+N_fam_combns, nrow(families))  
-  
-  #creates an lpSolve linear program model object with nrow(parents) + levels of fam_combn constraints and nrow(families) decision variables 
   
   for(fam in 1:nrow(families)) {
     par_count_temp <- NULL
@@ -411,9 +281,14 @@ assortative <- function(families, parents, n_fam_crosses) {
     set.type(mate_lp, fam, "binary") 
   }
   
-  set.objfn(mate_lp, as.numeric(-families[,"EBV_dev_squared"])) #minimise negative
+  set.objfn(mate_lp, as.numeric(families[,min_trait]))
   set.constr.type(mate_lp, c(rep("=",nrow(parents)),rep("<=",N_fam_combns)))
-  set.rhs(mate_lp, c(parents[,"N_AS_PARENT"],rep(n_fam_crosses,length(fam_combns))))
+  
+  tmp <- rep(n_fam_crosses,length(fam_combns))
+  tmp[fam_combns %in% families[families$F > max_F,"fam_combn"]] <- 0 #exclude if F > max_F
+  set.rhs(mate_lp, c(parents[,"N_AS_PARENT"],tmp))
+  rm(tmp)
+  
   dimnames(mate_lp) <- list(c(parents[,"ID"],(-1*as.numeric(fam_combns))),families[,"FAMILY"])
   
   #print("Writing linear program")
@@ -425,7 +300,6 @@ assortative <- function(families, parents, n_fam_crosses) {
   
   if(solved != 0) {
     stop ("Linear program not solved")
-    
   }
   
   selected <- data.frame(get.variables(mate_lp))
