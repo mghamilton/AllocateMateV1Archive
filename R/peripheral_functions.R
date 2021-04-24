@@ -223,16 +223,14 @@ generate.fams <- function(H, parents, ped, max_F) {
   parents <- left_join(parents, rbind(tmp1, tmp2), by = "ID")
   rm(tmp1, tmp2)
   
-  tmp <- parents$ID[is.na(parents$N_possible_families_after_max_F_constraint_applied)]
+  parents[is.na(parents$N_possible_families_after_max_F_constraint_applied),"N_possible_families_after_max_F_constraint_applied"] <- 0
+  
+  tmp <- parents$ID[parents$N_AS_PARENT > parents$N_possible_families_after_max_F_constraint_applied]
   if(length(tmp) > 0 ) {
     print(parents)    
     stop(paste("max_F too small given N_AS_PARENT values. Check: ",paste(tmp, sep=" ")))
   }
   
-  if(sum(parents$N_AS_PARENT > parents$N_possible_families_after_max_F_constraint_applied) > 0) {
-    print(parents)    
-    stop("max_F too small given N_AS_PARENT values")
-  }
   return(families_all)
 }
 
