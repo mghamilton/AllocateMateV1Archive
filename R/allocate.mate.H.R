@@ -47,7 +47,7 @@
 #' data(H)
 #' data(parents)
 #' 
-#' output <- allocate.mate.H(H, parents, max_F = 0.08, method = "min_F") 
+#' output <- allocate.mate.H(H, parents, max_F = 0.02, method = "min_F") 
 #' output$summary
 #' head(output$all_families)
 #' head(output$optimal_families)

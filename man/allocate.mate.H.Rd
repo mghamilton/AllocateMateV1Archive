@@ -63,7 +63,7 @@ Inputs include a list of parents and a relationship matrix (H) including these p
 data(H)
 data(parents)
 
-output <- allocate.mate.H(H, parents, max_F = 0.08, method = "min_F") 
+output <- allocate.mate.H(H, parents, max_F = 0.02, method = "min_F") 
 output$summary
 head(output$all_families)
 head(output$optimal_families)

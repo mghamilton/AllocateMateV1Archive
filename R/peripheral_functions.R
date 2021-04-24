@@ -297,7 +297,7 @@ solve_lp <- function(families, parents, n_fam_crosses, max_F, min_trait) {
   solved <- solve(mate_lp) #0 indicates that the model was successfully solved.
   
   if(solved != 0) {
-    stop ("Linear program not solved.  Try relaxing \'max_F\' constraint or altering \'N_AS_PARENT\' values to maximise the number of possible mating pairs with coefficients of coancestry below max_F.")
+    stop ("Linear program not solved.  Try relaxing \'max_F\' or \'n_fam_crosses\' constraints, or altering \'N_AS_PARENT\' values to maximise the number of possible mating pairs with coefficients of coancestry below max_F.")
   }
   
   selected <- data.frame(get.variables(mate_lp))

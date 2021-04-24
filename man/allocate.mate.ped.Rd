@@ -70,7 +70,7 @@ Inputs include a list of parents and a 3-column pedigree file specifying the anc
 data(ped)
 data(parents)
 
-output <- allocate.mate.ped(ped, parents, max_F = 0.08, method = "min_F", n_fam_crosses = 1) 
+output <- allocate.mate.ped(ped, parents, max_F = 0.02, method = "min_F", n_fam_crosses = 1) 
 output$summary
 head(output$all_families)
 head(output$optimal_families)
