@@ -1,9 +1,9 @@
 Package: AllocateMate
-Title: Mate allocation tool
+Title: An R package for mate allocation
 Description: Creates a mating list from a list of candidate parents by either i) minimising the mean inbreeding coefficient or ii) applying assortative mating
 Version: 1.0
-Author: Matthew Hamilton <matthewhamilton75@gmail.com>
-Maintainer: Matthew Hamilton <matthewhamilton75@gmail.com>
+Author: Matthew Gray Hamilton <matthewhamilton75@gmail.com>
+Maintainer: Matthew Gray Hamilton <matthewhamilton75@gmail.com>
 Depends: R (>= 4.0.0)
 License: GPL-3
 Imports:
