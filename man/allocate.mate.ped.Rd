@@ -26,7 +26,7 @@ allocate.mate.ped(ped, parents, max_F = 1, method = "min_F", n_fam_crosses = 1)
 
 \item{method}{either 'min_F' (to minimise the average inbreeding in offspring) or 'assortative' (to apply assortative mating) (character)}
 
-\item{n_fam_crosses}{is the maxiumum number of crosses allowed between parents from the same families (integer)}
+\item{n_fam_crosses}{is the maxiumum number of siblings from one family allowed to be crossed with siblings of another family.  This represents a constraint on the generation of 'double first cousins'. (integer)}
 }
 \value{
 'summary' is a data frame containing a summary of all possible families generated from matings between parents: 
