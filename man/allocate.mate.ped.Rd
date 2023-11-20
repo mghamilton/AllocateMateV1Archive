@@ -67,8 +67,8 @@ Inputs include a list of parents and a 3-column pedigree file specifying the anc
 }
 \examples{
 #Retrieve example data
-data(ped)
-data(parents)
+ped <- AllocateMate::ped
+parents <- AllocateMate::parents
 
 output <- allocate.mate.ped(ped, parents, max_F = 0.02, method = "min_F", n_fam_crosses = 1) 
 output$summary
