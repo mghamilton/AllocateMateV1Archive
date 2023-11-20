@@ -44,8 +44,8 @@
 #' } 
 #' @examples
 #' #Retrieve example data
-#' data(H)
-#' data(parents)
+#' H <- AllocateMate::H
+#' parents <- AllocateMate::parents
 #' 
 #' output <- allocate.mate.H(H, parents, max_F = 0.02, method = "min_F") 
 #' output$summary
