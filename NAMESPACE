@@ -2,3 +2,5 @@
 
 export(allocate.mate.H)
 export(allocate.mate.ped)
+import(AGHmatrix)
+import(nadiv)
