@@ -8,6 +8,7 @@ Depends: R (>= 4.0.0)
 License: GPL-3
 Imports:
     dplyr,
-    lpSolveAPI
+    lpSolveAPI,
+    AGHmatrix
 LazyData: true
 RoxygenNote: 7.2.3
