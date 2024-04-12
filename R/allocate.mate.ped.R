@@ -69,10 +69,13 @@ allocate.mate.ped <- function(ped, parents, max_F = 1, method = "min_F", n_fam_c
   
   #if("nadiv" %in% installed.packages()[, "Package"] == F) {install.packages("nadiv")}   
   #library(nadiv)
+  #library(lpSolveAPI)
   #library(AGHmatrix)
+  #library(dplyr)
   
+  check.parents(parents)  
   check.ped(ped)
-  check.parents(parents)
+  check.ped2(ped)
   check.n_fam_crosses(n_fam_crosses)
   check.max_F(max_F)
   check.method(method)
@@ -81,18 +84,18 @@ allocate.mate.ped <- function(ped, parents, max_F = 1, method = "min_F", n_fam_c
   #ped <- nadiv::prunePed(ped = ped, phenotyped = parents$ID)
   ped[ped$DAM  == 0 & !is.na(ped$DAM), "DAM"]  <- NA
   ped[ped$SIRE == 0 & !is.na(ped$SIRE),"SIRE"] <- NA
- # ped <- nadiv::prepPed(ped = ped)
+  # ped <- nadiv::prepPed(ped = ped)
   ped <- ped.order(pedigree = ped)
   ped[is.na(ped$DAM), "DAM"]  <- 0
   ped[is.na(ped$SIRE),"SIRE"] <- 0
   
- # H <- makeA(ped)  #unstable with large pedigrees, use Amatrix instead
+  # H <- makeA(ped)  #unstable with large pedigrees, use Amatrix instead
   H <- AGHmatrix::Amatrix(ped)
   H <- H[rownames(H) %in% parents$ID, colnames(H) %in% parents$ID]
   H <- as.matrix(H)
   
   families <- generate.fams(H = H, ped = ped, parents = parents, max_F = max_F) 
- 
+  
   if(method == "assortative") {
     output <- solve_lp(families = families, parents = parents, n_fam_crosses = n_fam_crosses, max_F = max_F, min_trait = "EBV_dev_squared")
   }
@@ -100,7 +103,7 @@ allocate.mate.ped <- function(ped, parents, max_F = 1, method = "min_F", n_fam_c
   if(method == "min_F") {
     output <- solve_lp(families = families, parents = parents, n_fam_crosses = n_fam_crosses, max_F = max_F, min_trait = "F")
   }
-
+  
   return(output)
   
 }

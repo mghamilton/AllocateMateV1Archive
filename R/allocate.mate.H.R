@@ -60,8 +60,10 @@ allocate.mate.H <- function(H, parents, max_F = 1, method = "min_F") {
   #mhamilton@cgiar.org
   #Feb 2021
   
- # if("nadiv" %in% installed.packages()[, "Package"] == F) {install.packages("nadiv")}   
- # library(nadiv)
+  # if("nadiv" %in% installed.packages()[, "Package"] == F) {install.packages("nadiv")}   
+  # library(nadiv)
+  # library(lpSolveAPI)
+  # library(dplyr)
   
   check.H(H)
   check.parents(parents)
@@ -75,7 +77,6 @@ allocate.mate.H <- function(H, parents, max_F = 1, method = "min_F") {
   ped[ped$DAM == 0,"DAM"] <- NA
   ped[ped$SIRE == 0,"SIRE"] <- NA
   #ped <- nadiv::prepPed(ped)
-  ped <- ped.order(ped)
   
   families <- generate.fams(H = H, parents = parents, ped = ped, max_F = max_F) 
   

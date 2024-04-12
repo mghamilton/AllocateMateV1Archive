@@ -3,3 +3,5 @@
 export(allocate.mate.H)
 export(allocate.mate.ped)
 import(AGHmatrix)
+import(dplyr)
+import(lpSolveAPI)

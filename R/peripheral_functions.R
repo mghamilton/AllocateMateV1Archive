@@ -9,6 +9,10 @@ check.ped <- function(ped) {
   if(sum(colnames(ped) %in% c("ID", "DAM", "SIRE")) != 3) {
     stop("colnames of ped must be: ID, DAM and SIRE")
   }
+  
+}
+
+check.ped2 <- function(ped) {
   tmp <- unique(c(ped[,"DAM"], ped[,"SIRE"]))
   tmp <- tmp[tmp != 0]
   tmp <- tmp[!is.na(tmp)]
@@ -17,24 +21,24 @@ check.ped <- function(ped) {
   }
   rm(tmp)
   
-  if (sum(pedigree[, 1] == 0 | pedigree[, 1] == "0" | is.na(pedigree[, 1])) > 0) {
+  if (sum(ped[, 1] == 0 | ped[, 1] == "0" | is.na(ped[, 1])) > 0) {
     stop("Missing value in the ID column in \'ped\'")
   }
   
-  if (sum(pedigree[(pedigree[, 2] != 0 & pedigree[, 2] != "0" & !is.na(pedigree[, 2])), 2] %in% 
-          pedigree[(pedigree[, 3] != 0 & pedigree[, 3] != "0" & !is.na(pedigree[, 3])), 3]) > 0) {
-    warning("Dams appearing as Sires - selfing in pedigree")
+  if (sum(ped[(ped[, 2] != 0 & ped[, 2] != "0" & !is.na(ped[, 2])), 2] %in% 
+          ped[(ped[, 3] != 0 & ped[, 3] != "0" & !is.na(ped[, 3])), 3]) > 0) {
+    warning("Dams appearing as Sires - selfing in ped")
   }
   
-  if (sum(duplicated(pedigree[, 1])) > 0) {
+  if (sum(duplicated(ped[, 1])) > 0) {
     stop("Some individuals appear more than once in \'ped\'")
   }
   
   if(sum(
-    ((pedigree[, 2] == 0 | pedigree[, 2] == "0" | is.na(pedigree[, 2])) & 
-     (pedigree[, 3] != 0 & pedigree[, 3] != "0" & !is.na(pedigree[, 3]))) | 
-    ((pedigree[, 3] == 0 | pedigree[, 3] == "0" | is.na(pedigree[, 3])) & 
-     (pedigree[, 2] != 0 & pedigree[, 2] != "0" & !is.na(pedigree[, 2]))) 
+    ((ped[, 2] == 0 | ped[, 2] == "0" | is.na(ped[, 2])) & 
+     (ped[, 3] != 0 & ped[, 3] != "0" & !is.na(ped[, 3]))) | 
+    ((ped[, 3] == 0 | ped[, 3] == "0" | is.na(ped[, 3])) & 
+     (ped[, 2] != 0 & ped[, 2] != "0" & !is.na(ped[, 2]))) 
   ) > 0) {
     stop("If an individual is not a founder (i.e. both parents are unknown), both the SIRE and DAM must be specified in \'ped\'.  It may be necessary to define new founders")
   }
@@ -323,7 +327,7 @@ solve_lp <- function(families, parents, n_fam_crosses, max_F, min_trait) {
   
   print("Solving linear program")
   #Solve linear program
-  solved <- lpSolveAPI::solve(mate_lp) #0 indicates that the model was successfully solved.
+  solved <- solve(mate_lp) #0 indicates that the model was successfully solved.
   
   if(solved != 0) {
     stop ("Linear program not solved.  Try relaxing \'max_F\' constraint (or \'n_fam_crosses\' if using allocate.mate.ped) , or altering \'N_AS_PARENT\' values to maximise the number of possible mating pairs with coefficients of coancestry below max_F.")
@@ -356,18 +360,18 @@ ped.order <- function (pedigree) {
   pedigree[,"ID_GEN"] <- NA
   pedigree[(pedigree[, 2] == 0 | pedigree[, 2] == "0" | is.na(pedigree[, 2])) & 
              (pedigree[, 3] == 0 | pedigree[, 3] == "0" | is.na(pedigree[, 3])),"ID_GEN"] <- 0
-  
+
   iteration <- 0
   nrow_ped  <- nrow(pedigree)
   while(sum(is.na(pedigree[,"ID_GEN"])) > 0) {
-    gen_known <- pedigree[!is.na(pedigree["ID_GEN"]),]
+    gen_known   <- pedigree[!is.na(pedigree["ID_GEN"]),]
     gen_unknown <- pedigree[is.na(pedigree["ID_GEN"]),]
     tmp <- gen_known[,c("ID", "ID_GEN")]
     
     colnames(tmp) <- c("DAM", "DAM_GEN")
-    gen_unknown <- dplyr::left_join(gen_unknown, tmp, by = "DAM")
+    gen_unknown <- merge(gen_unknown, tmp, by = "DAM", all.x = T)
     colnames(tmp) <- c("SIRE", "SIRE_GEN")
-    gen_unknown <- dplyr::left_join(gen_unknown, tmp, by = "SIRE")
+    gen_unknown <- merge(gen_unknown, tmp, by = "SIRE", all.x = T)
     gen_unknown[,"ID_GEN"] <-  (gen_unknown[,"DAM_GEN"] + gen_unknown[,"SIRE_GEN"])/2 + 1
     gen_unknown <- gen_unknown[,colnames(gen_known)]
     pedigree <- rbind(gen_known, gen_unknown)
@@ -378,6 +382,7 @@ ped.order <- function (pedigree) {
     }
     iteration + 1
   }
+  pedigree <- pedigree[order(pedigree[,"ID_GEN"]),]
   
   return(pedigree[,c("ID", "DAM", "SIRE")])
 }
