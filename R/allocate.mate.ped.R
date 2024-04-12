@@ -57,16 +57,16 @@
 #' output$summary
 #' head(output$all_families)
 #' head(output$optimal_families)
-#' @import nadiv
 #' @import AGHmatrix
 #' @export
+# @import nadiv
 
 allocate.mate.ped <- function(ped, parents, max_F = 1, method = "min_F", n_fam_crosses = 1) {
   #mhamilton@cgiar.org
   #Feb 2021
   
   #if("nadiv" %in% installed.packages()[, "Package"] == F) {install.packages("nadiv")}   
-  library(nadiv)
+  #library(nadiv)
   library(AGHmatrix)
   
   check.ped(ped)
@@ -75,11 +75,12 @@ allocate.mate.ped <- function(ped, parents, max_F = 1, method = "min_F", n_fam_c
   check.max_F(max_F)
   check.method(method)
   
- # ped <- reduce.ped(ped = ped, parents = parents)
-  ped <- nadiv::prunePed(ped = ped, phenotyped = parents$ID)
+  ped <- reduce.ped(ped = ped, parents = parents)
+  #ped <- nadiv::prunePed(ped = ped, phenotyped = parents$ID)
   ped[ped$DAM  == 0 & !is.na(ped$DAM), "DAM"]  <- NA
   ped[ped$SIRE == 0 & !is.na(ped$SIRE),"SIRE"] <- NA
-  ped <- nadiv::prepPed(ped = ped)
+ # ped <- nadiv::prepPed(ped = ped)
+  ped <- ped.order(pedigree = ped)
   ped[is.na(ped$DAM), "DAM"]  <- 0
   ped[is.na(ped$SIRE),"SIRE"] <- 0
   

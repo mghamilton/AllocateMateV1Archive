@@ -9,6 +9,35 @@ check.ped <- function(ped) {
   if(sum(colnames(ped) %in% c("ID", "DAM", "SIRE")) != 3) {
     stop("colnames of ped must be: ID, DAM and SIRE")
   }
+  tmp <- unique(c(ped[,"DAM"], ped[,"SIRE"]))
+  tmp <- tmp[tmp != 0]
+  tmp <- tmp[!is.na(tmp)]
+  if(sum(!tmp %in% ped[,"ID"])) {
+    stop("The ID column in \'ped\' does not contain the identifiers of all DAMs and SIREs")
+  }
+  rm(tmp)
+  
+  if (sum(pedigree[, 1] == 0 | pedigree[, 1] == "0" | is.na(pedigree[, 1])) > 0) {
+    stop("Missing value in the ID column in \'ped\'")
+  }
+  
+  if (sum(pedigree[(pedigree[, 2] != 0 & pedigree[, 2] != "0" & !is.na(pedigree[, 2])), 2] %in% 
+          pedigree[(pedigree[, 3] != 0 & pedigree[, 3] != "0" & !is.na(pedigree[, 3])), 3]) > 0) {
+    warning("Dams appearing as Sires - selfing in pedigree")
+  }
+  
+  if (sum(duplicated(pedigree[, 1])) > 0) {
+    stop("Some individuals appear more than once in \'ped\'")
+  }
+  
+  if(sum(
+    ((pedigree[, 2] == 0 | pedigree[, 2] == "0" | is.na(pedigree[, 2])) & 
+     (pedigree[, 3] != 0 & pedigree[, 3] != "0" & !is.na(pedigree[, 3]))) | 
+    ((pedigree[, 3] == 0 | pedigree[, 3] == "0" | is.na(pedigree[, 3])) & 
+     (pedigree[, 2] != 0 & pedigree[, 2] != "0" & !is.na(pedigree[, 2]))) 
+  ) > 0) {
+    stop("If an individual is not a founder (i.e. both parents are unknown), both the SIRE and DAM must be specified in \'ped\'.  It may be necessary to define new founders")
+  }
 }
 
 check.max_F <- function(max_F) {
@@ -320,3 +349,35 @@ solve_lp <- function(families, parents, n_fam_crosses, max_F, min_trait) {
   
 }
 
+
+ped.order <- function (pedigree) {
+  #order pedigree to ensure each individual is listed in ID is before it is listed as a SIRE or DAM
+  pedigree <- pedigree[order(pedigree[,"ID"]),]
+  pedigree[,"ID_GEN"] <- NA
+  pedigree[(pedigree[, 2] == 0 | pedigree[, 2] == "0" | is.na(pedigree[, 2])) & 
+             (pedigree[, 3] == 0 | pedigree[, 3] == "0" | is.na(pedigree[, 3])),"ID_GEN"] <- 0
+  
+  iteration <- 0
+  nrow_ped  <- nrow(pedigree)
+  while(sum(is.na(pedigree[,"ID_GEN"])) > 0) {
+    gen_known <- pedigree[!is.na(pedigree["ID_GEN"]),]
+    gen_unknown <- pedigree[is.na(pedigree["ID_GEN"]),]
+    tmp <- gen_known[,c("ID", "ID_GEN")]
+    
+    colnames(tmp) <- c("DAM", "DAM_GEN")
+    gen_unknown <- merge(gen_unknown, tmp, by = "DAM")
+    colnames(tmp) <- c("SIRE", "SIRE_GEN")
+    gen_unknown <- merge(gen_unknown, tmp, by = "SIRE")
+    gen_unknown[,"ID_GEN"] <-  (gen_unknown[,"DAM_GEN"] + gen_unknown[,"SIRE_GEN"])/2 + 1
+    gen_unknown <- gen_unknown[,colnames(gen_known)]
+    pedigree <- rbind(gen_known, gen_unknown)
+    rm(tmp, gen_known, gen_unknown)
+    
+    if(iteration > nrow_ped) {
+      stop("Unknown issue when ordering pedigree so that ID listed before it is a DAM or SIRE")
+    }
+    iteration + 1
+  }
+  
+  return(pedigree[,c("ID", "DAM", "SIRE")])
+}
