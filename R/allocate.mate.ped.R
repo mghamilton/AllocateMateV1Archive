@@ -57,6 +57,7 @@
 #' output$summary
 #' head(output$all_families)
 #' head(output$optimal_families)
+#' @import lpSolveAPI
 #' @import AGHmatrix
 #' @import dplyr
 #' @export
