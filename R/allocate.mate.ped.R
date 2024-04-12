@@ -58,6 +58,7 @@
 #' head(output$all_families)
 #' head(output$optimal_families)
 #' @import AGHmatrix
+#' @import dplyr
 #' @export
 # @import nadiv
 
@@ -67,7 +68,7 @@ allocate.mate.ped <- function(ped, parents, max_F = 1, method = "min_F", n_fam_c
   
   #if("nadiv" %in% installed.packages()[, "Package"] == F) {install.packages("nadiv")}   
   #library(nadiv)
-  library(AGHmatrix)
+  #library(AGHmatrix)
   
   check.ped(ped)
   check.parents(parents)

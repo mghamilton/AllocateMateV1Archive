@@ -51,6 +51,7 @@
 #' output$summary
 #' head(output$all_families)
 #' head(output$optimal_families)
+#' @import dplyr
 #' @export
 # @import nadiv
 

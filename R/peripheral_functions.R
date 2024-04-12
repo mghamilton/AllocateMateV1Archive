@@ -175,8 +175,8 @@ summarise.fam <- function(families, parents) {
 
 generate.fams <- function(H, parents, ped, max_F) {
   
-  if("dplyr" %in% installed.packages()[, "Package"] == F) {install.packages("dplyr")}   
-  library(dplyr) 
+ # if("dplyr" %in% installed.packages()[, "Package"] == F) {install.packages("dplyr")}   
+ #  library(dplyr) 
   
   #Data checks
   check.H(H)
@@ -210,14 +210,14 @@ generate.fams <- function(H, parents, ped, max_F) {
   families <- families[c("FAMILY","DAM","SIRE", "F")]
   
   #merge EBV data
-  ebvs <- left_join(families, parents[,c("ID", "EBV")], by = c("DAM"  = "ID"))
-  ebvs <- left_join(ebvs, parents[,c("ID", "EBV")], by = c("SIRE" = "ID"))
+  ebvs <- dplyr::left_join(families, parents[,c("ID", "EBV")], by = c("DAM"  = "ID"))
+  ebvs <- dplyr::left_join(ebvs, parents[,c("ID", "EBV")], by = c("SIRE" = "ID"))
   ebvs$EBV <- rowMeans(ebvs[,c("EBV.x","EBV.y")], na.rm = T)
   ebvs[is.na(ebvs$EBV.x),"EBV"] <- NA
   ebvs[is.na(ebvs$EBV.y),"EBV"] <- NA
   colnames(ebvs)[colnames(ebvs) == "EBV.x"] <- "dam_ebv"
   colnames(ebvs)[colnames(ebvs) == "EBV.y"] <- "sire_ebv"
-  families <- left_join(families, ebvs[,c("FAMILY", "dam_ebv", "sire_ebv", "EBV")], by = "FAMILY")
+  families <- dplyr::left_join(families, ebvs[,c("FAMILY", "dam_ebv", "sire_ebv", "EBV")], by = "FAMILY")
   rm(ebvs)
   
   #parental FAMILY combinations
@@ -229,10 +229,10 @@ generate.fams <- function(H, parents, ped, max_F) {
   tmp$ID <- as.character(tmp$ID)
   
   colnames(tmp) <- c("DAM", "dam_fam")
-  families  <- left_join(families , tmp[,c("DAM","dam_fam")], by= "DAM")
+  families  <- dplyr::left_join(families , tmp[,c("DAM","dam_fam")], by= "DAM")
   
   colnames(tmp) <- c("SIRE", "sire_fam")
-  families  <- left_join(families , tmp[,c("SIRE","sire_fam")], by= "SIRE")
+  families  <- dplyr::left_join(families , tmp[,c("SIRE","sire_fam")], by= "SIRE")
   
   families <- families[order(as.numeric(families$FAMILY) , decreasing = FALSE), ] 
   
@@ -249,7 +249,7 @@ generate.fams <- function(H, parents, ped, max_F) {
   tmp2 <- aggregate(!is.na(families[,"SIRE"]),by=list(families[,"SIRE"]), FUN = "sum") 
   colnames(tmp2) <- c("ID", "N_possible_families_after_max_F_constraint_applied")
   
-  parents <- left_join(parents, rbind(tmp1, tmp2), by = "ID")
+  parents <- dplyr::left_join(parents, rbind(tmp1, tmp2), by = "ID")
   rm(tmp1, tmp2)
   
   parents[is.na(parents$N_possible_families_after_max_F_constraint_applied),"N_possible_families_after_max_F_constraint_applied"] <- 0
@@ -265,11 +265,11 @@ generate.fams <- function(H, parents, ped, max_F) {
 
 solve_lp <- function(families, parents, n_fam_crosses, max_F, min_trait) {
   
-  if("lpSolveAPI" %in% installed.packages()[, "Package"] == F) {install.packages("lpSolveAPI")}   
-  library(lpSolveAPI) 
+#  if("lpSolveAPI" %in% installed.packages()[, "Package"] == F) {install.packages("lpSolveAPI")}   
+#  library(lpSolveAPI) 
   
-  if("dplyr" %in% installed.packages()[, "Package"] == F) {install.packages("dplyr")}   
-  library(dplyr) 
+#  if("dplyr" %in% installed.packages()[, "Package"] == F) {install.packages("dplyr")}   
+#  library(dplyr) 
   
   #Data checks
   check.parents(parents)
@@ -285,7 +285,7 @@ solve_lp <- function(families, parents, n_fam_crosses, max_F, min_trait) {
   #http://www.icesi.edu.co/CRAN/web/packages/lpSolveAPI/vignettes/lpSolveAPI.pdf
   
   print("Creating lpSolve linear program model object")
-  mate_lp <- make.lp(nrow(parents)+N_fam_combns, nrow(families))  
+  mate_lp <- lpSolveAPI::make.lp(nrow(parents)+N_fam_combns, nrow(families))  
   
   #creates an lpSolve linear program model object with nrow(parents) + levels of fam_combn constraints and nrow(families) decision variables 
   
@@ -302,18 +302,18 @@ solve_lp <- function(families, parents, n_fam_crosses, max_F, min_trait) {
     par_fam_count_temp <- as.vector(1*(fam_combns == as.numeric(families[fam,"fam_combn"])))    
     
     #vector of counts for the number of times par is a parent in fam
-    set.column(mate_lp, fam, c(par_count_temp,par_fam_count_temp))
+    lpSolveAPI::set.column(mate_lp, fam, c(par_count_temp,par_fam_count_temp))
     
     #Constrain FAMILY count to 0 or 1 (i.e. binary)   
-    set.type(mate_lp, fam, "binary") 
+    lpSolveAPI::set.type(mate_lp, fam, "binary") 
   }
   
-  set.objfn(mate_lp, as.numeric(families[,min_trait]))
-  set.constr.type(mate_lp, c(rep("=",nrow(parents)),rep("<=",N_fam_combns)))
+  lpSolveAPI::set.objfn(mate_lp, as.numeric(families[,min_trait]))
+  lpSolveAPI::set.constr.type(mate_lp, c(rep("=",nrow(parents)),rep("<=",N_fam_combns)))
   
   tmp <- rep(n_fam_crosses,length(fam_combns))
   tmp[fam_combns %in% families[families$F > max_F,"fam_combn"]] <- 0 #exclude if F > max_F
-  set.rhs(mate_lp, c(parents[,"N_AS_PARENT"],tmp))
+  lpSolveAPI::set.rhs(mate_lp, c(parents[,"N_AS_PARENT"],tmp))
   rm(tmp)
   
   dimnames(mate_lp) <- list(c(parents[,"ID"],(-1*as.numeric(fam_combns))),families[,"FAMILY"])
@@ -323,13 +323,13 @@ solve_lp <- function(families, parents, n_fam_crosses, max_F, min_trait) {
   
   print("Solving linear program")
   #Solve linear program
-  solved <- solve(mate_lp) #0 indicates that the model was successfully solved.
+  solved <- lpSolveAPI::solve(mate_lp) #0 indicates that the model was successfully solved.
   
   if(solved != 0) {
     stop ("Linear program not solved.  Try relaxing \'max_F\' constraint (or \'n_fam_crosses\' if using allocate.mate.ped) , or altering \'N_AS_PARENT\' values to maximise the number of possible mating pairs with coefficients of coancestry below max_F.")
   }
   
-  selected <- data.frame(get.variables(mate_lp))
+  selected <- data.frame(lpSolveAPI::get.variables(mate_lp))
   selected$FAMILY <- rownames(selected)
   colnames(selected)[1] <- "SELECTED"
   families <- merge(families, selected, by = "FAMILY",all = FALSE)
@@ -365,9 +365,9 @@ ped.order <- function (pedigree) {
     tmp <- gen_known[,c("ID", "ID_GEN")]
     
     colnames(tmp) <- c("DAM", "DAM_GEN")
-    gen_unknown <- merge(gen_unknown, tmp, by = "DAM")
+    gen_unknown <- dplyr::left_join(gen_unknown, tmp, by = "DAM")
     colnames(tmp) <- c("SIRE", "SIRE_GEN")
-    gen_unknown <- merge(gen_unknown, tmp, by = "SIRE")
+    gen_unknown <- dplyr::left_join(gen_unknown, tmp, by = "SIRE")
     gen_unknown[,"ID_GEN"] <-  (gen_unknown[,"DAM_GEN"] + gen_unknown[,"SIRE_GEN"])/2 + 1
     gen_unknown <- gen_unknown[,colnames(gen_known)]
     pedigree <- rbind(gen_known, gen_unknown)
