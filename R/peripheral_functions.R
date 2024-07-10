@@ -22,6 +22,12 @@ check.ped <- function(ped) {
     stop("Fields in ped (ID, DAM and SIRE) must be of class character")
   }
   
+  ped[ped$DAM == "","DAM"] <- 0
+  ped[is.na(ped$DAM),"DAM"] <- 0  
+  
+  ped[ped$SIRE == "","SIRE"] <- 0
+  ped[is.na(ped$SIRE),"SIRE"] <- 0  
+  
 }
 
 check.ped2 <- function(ped) {
