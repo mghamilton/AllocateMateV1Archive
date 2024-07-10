@@ -27,6 +27,7 @@ check.ped <- function(ped) {
 check.ped2 <- function(ped) {
   tmp <- unique(c(ped[,"DAM"], ped[,"SIRE"]))
   tmp <- tmp[tmp != 0]
+  tmp <- tmp[tmp != ""]
   tmp <- tmp[!is.na(tmp)]
   if(sum(!tmp %in% ped[,"ID"])) {
     stop("The ID column in \'ped\' does not contain the identifiers of all DAMs and SIREs")
