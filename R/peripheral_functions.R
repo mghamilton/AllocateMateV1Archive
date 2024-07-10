@@ -141,7 +141,7 @@ reduce.ped <- function(ped, parents) {
   while(ancestors_prev != length(ancestors)) {
     tmp <- ped$ID %in% ancestors
     ancestors_prev <- length(ancestors)
-    ancestors <- unique(c(ancestors,ped[tmp, "DAM"], ped[tmp, "SIRE"]))
+    ancestors <- unique(c(ancestors,as.character(ped[tmp, "DAM"]), as.character(ped[tmp, "SIRE"])))
     rm(tmp)
   }
   
