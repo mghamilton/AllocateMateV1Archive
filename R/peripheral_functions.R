@@ -22,12 +22,15 @@ check.ped <- function(ped) {
     stop("Fields in ped (ID, DAM and SIRE) must be of class character")
   }
 
+  if(sum(ped != "") > 0) {
+    stop("Fields in ped must not contain a blank spaces.  Replace with 0 or NA.")
+  }
+  
 }
 
 check.ped2 <- function(ped) {
   tmp <- unique(c(ped[,"DAM"], ped[,"SIRE"]))
   tmp <- tmp[tmp != 0]
-  tmp <- tmp[tmp != ""]
   tmp <- tmp[!is.na(tmp)]
   if(sum(!tmp %in% ped[,"ID"])) {
     stop("The ID column in \'ped\' does not contain the identifiers of all DAMs and SIREs")
