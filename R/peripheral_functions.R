@@ -10,6 +10,18 @@ check.ped <- function(ped) {
     stop("colnames of ped must be: ID, DAM and SIRE")
   }
   
+  if(!is.character(ped$ID)) {
+    stop("Fields in ped ID, DAM and SIRE must be of class character")
+  }
+  
+  if(!is.character(ped$DAM)) {
+    stop("Fields in ped ID, DAM and SIRE must be of class character")
+  }
+  
+  if(!is.character(ped$SIRE)) {
+    stop("Fields in ped (ID, DAM and SIRE) must be of class character")
+  }
+  
 }
 
 check.ped2 <- function(ped) {
