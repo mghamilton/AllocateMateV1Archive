@@ -78,6 +78,9 @@ allocate.mate.H <- function(H, parents, max_F = 1, method = "min_F") {
   ped[ped$SIRE == 0,"SIRE"] <- NA
   #ped <- nadiv::prepPed(ped)
   
+  ped$DAM <- as.character(ped$DAM)
+  ped$SIRE <- as.character(ped$SIRE)
+  
   families <- generate.fams(H = H, parents = parents, ped = ped, max_F = max_F) 
   
   if(method == "assortative") {
