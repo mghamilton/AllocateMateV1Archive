@@ -74,7 +74,6 @@ allocate.mate.ped <- function(ped, parents, max_F = 1, method = "min_F", n_fam_c
   #library(dplyr)
   
   check.parents(parents)  
-  check.ped(ped)
   check.ped2(ped)
   check.n_fam_crosses(n_fam_crosses)
   check.max_F(max_F)

@@ -21,7 +21,7 @@ check.ped <- function(ped) {
   if(!is.character(ped$SIRE)) {
     stop("Fields in ped (ID, DAM and SIRE) must be of class character")
   }
-
+  
   if(sum(ped == "") > 0) {
     stop("Fields in ped must not contain a blank spaces.  Replace with 0 or NA.")
   }
