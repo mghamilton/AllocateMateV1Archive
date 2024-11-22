@@ -2,6 +2,8 @@
 
 AllocateMate is a R package (R Core Team 2016) comprised of two primary functions: allocate.mate.ped and allocate.mate.H
 
+An updated version of AllocateMate is available at https://github.com/mghamilton/AllocateMate
+
 ### What is AllocateMate ###
 
 * AllocateMate generates a mating list for a set of parents.
